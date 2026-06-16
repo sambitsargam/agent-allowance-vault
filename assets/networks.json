@@ -1,0 +1,22 @@
+{
+  "pharos-testnet": {
+    "name": "Pharos Testnet",
+    "chainId": 688688,
+    "rpcUrl": "https://testnet.dplabs-internal.com",
+    "currencySymbol": "PHRS",
+    "explorerUrl": "https://testnet.pharosscan.xyz",
+    "explorerApiUrl": "https://testnet.pharosscan.xyz/api",
+    "verifier": "blockscout",
+    "faucet": "https://testnet.pharosnetwork.xyz"
+  },
+  "pharos-atlantic": {
+    "name": "Pharos Atlantic Testnet",
+    "chainId": 688689,
+    "rpcUrl": "https://atlantic.dplabs-internal.com",
+    "currencySymbol": "PHRS",
+    "explorerUrl": "https://atlantic.pharosscan.xyz",
+    "explorerApiUrl": "https://atlantic.pharosscan.xyz/api",
+    "verifier": "blockscout",
+    "faucet": "https://testnet.pharosnetwork.xyz"
+  }
+}
