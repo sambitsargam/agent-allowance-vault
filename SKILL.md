@@ -1,31 +1,51 @@
-# Agent Allowance Vault — Pharos Skill
-
-> A Pharos Skill Engine skill that lets a human owner delegate **bounded, revocable
-> spending power** to autonomous AI agents. Agents pay from a shared vault within an
-> enforced budget; anything over budget is queued for one-click owner approval.
-> Security guardrails are enforced on-chain, not by the agent.
-
+---
+name: agent-allowance-vault
+description: >
+  Give an AI agent a spending allowance instead of a private key on Pharos. Deploy and operate
+  the Agent Allowance Vault via cast/forge: fund a vault (native PHRS or any ERC20), grant an
+  agent a rolling spending cap + per-transaction max + expiry enforced on-chain, let the agent
+  pay within budget, and queue over-budget payments for one-click owner approval. Invoke for
+  anything about agent spending limits, allowances, budgets, or a vault that lets an AI agent
+  pay safely on Pharos / PHRS / PROS / atlantic-testnet.
+version: 1.0.0
+requires:
+  anyBins:
+  - cast
+  - forge
 ---
 
-## Prerequisites (check before doing anything)
+# Agent Allowance Vault — Pharos Skill
 
-1. **Foundry installed** — run `which cast` and `which forge`. If missing, install:
-   `curl -L https://foundry.paradigm.xyz | bash && foundryup`
-2. **Environment variables set:**
-   ```bash
-   export PRIVATE_KEY=0xYOUR_KEY          # never hardcode or commit this
-   export RPC=https://atlantic.dplabs-internal.com  # Pharos Atlantic (chainId 688689, reachable)
-   export OWNER=$(cast wallet address --private-key $PRIVATE_KEY)
-   ```
-3. **Network config** — read `assets/networks.json` for RPC URL, chain ID, and explorer.
-   The default `pharos-testnet` (**688688**) endpoint may be access-gated; `pharos-atlantic`
-   (**688689**) is the reachable live network used for deployment.
-4. **Funds** — the owner needs PHRS (for gas, and to fund a native vault). Get test PHRS
-   from the faucet in `assets/networks.json`. The vault custodies one asset: **native PHRS**
-   by default (`asset = address(0)`, recommended) or any ERC20. Only deploy `MockPROS` if
-   you specifically want an ERC20 vault.
-5. **Foundry does NOT read env vars automatically** — always pass `--private-key
-   $PRIVATE_KEY` and `--rpc-url $RPC` explicitly on every command.
+> A Pharos Skill Engine skill that lets a human owner delegate **bounded, revocable spending
+> power** to autonomous AI agents. Agents pay from a shared vault within an enforced budget;
+> anything over budget is queued for one-click owner approval. Guardrails are enforced
+> on-chain, not by the agent.
+
+## Prerequisites
+
+### 1. Install & build
+Foundry is MANDATORY. Check `which cast`; if missing, install, then build. If installation
+fails, inform the user and STOP.
+```bash
+curl -L https://foundry.paradigm.xyz | bash && foundryup
+forge install foundry-rs/forge-std
+forge build
+```
+
+### 2. Set your key & network
+```bash
+export PRIVATE_KEY=0xYOUR_KEY
+export RPC=https://atlantic.dplabs-internal.com   # Atlantic testnet (688689); mainnet: https://rpc.pharos.xyz
+export OWNER=$(cast wallet address --private-key $PRIVATE_KEY)
+```
+Foundry does NOT read env vars automatically — pass `--private-key $PRIVATE_KEY` and
+`--rpc-url $RPC` explicitly on every command. Never log or commit the key.
+
+### 3. Funds & asset
+The owner needs PHRS for gas (and to fund a native vault) — use the faucet in
+`assets/networks.json`. The vault custodies one asset: **native PHRS** by default
+(`asset = address(0)`, recommended) or any ERC20. Read `assets/networks.json` for RPC, chain
+ID, and explorer; default to `pharos-atlantic` (**688689**).
 
 ---
 
