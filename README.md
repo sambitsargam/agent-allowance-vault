@@ -1,139 +1,87 @@
-# Agent Allowance Vault — a Pharos Skill Engine Skill
+# Agent Allowance Vault
 
-> **The on-chain spending-limit primitive that makes it safe to give an AI agent a wallet.**
->
-> Built for the [Pharos Phase 1 Hackathon](https://dorahacks.io/hackathon/pharos-phase1/).
-> *Skills first, agents second.*
+A [Pharos Skill Engine](https://docs.pharos.xyz/tooling-and-infrastructure/pharos-skill-engine-guide)
+skill that lets you give an AI agent a **spending allowance instead of your private key**. The
+agent pays from a shared vault within limits you set on-chain; anything over the limit waits for
+your approval.
 
-A human owner funds one vault (with **native PHRS** or any ERC20) and delegates
-**bounded, revocable** spending power to autonomous AI agents. Agents pay merchants
-directly — but only within an on-chain budget:
-a rolling spending cap, an optional per-transaction maximum, and an expiry. Anything over
-budget is queued for one-click owner approval. The owner can pause, revoke, or withdraw at
-any moment. **Every limit is enforced by the contract, not by the agent's prompt.**
+## What it can do
 
-This is packaged as a **Pharos Skill** — a self-contained knowledge + tooling bundle that
-an AI agent reads to operate the contract through `cast`/`forge`, with no bespoke SDK.
+- **Fund a vault** with native PHRS (or any ERC20) that an agent can spend from.
+- **Grant an agent a budget**: a rolling spending cap per period, a max per transaction, and an
+  expiry. The contract enforces all three — the agent literally cannot exceed them.
+- **Let the agent pay** merchants/recipients autonomously within the budget.
+- **Queue over-budget payments** for one-click owner approval (the agent escalates instead of
+  being blocked).
+- **Stay in control**: revoke an agent instantly, pause everything, withdraw, or hand over
+  ownership (two-step).
 
----
+## How to use it
 
-## Why this wins the "agents handling payments" thesis
-
-| Problem | This skill's answer |
-|---------|--------------------|
-| You can't hand an autonomous agent a raw private key — one hallucination drains the wallet. | The agent only ever holds a *spending allowance*, never the funds. Hard caps live on-chain. |
-| Prompt-based "rules" aren't security. | `cap`, `maxPerTx`, `expiry`, pause, and owner-only controls are enforced in Solidity and covered by 17 tests + fuzzing. |
-| Agents still need to handle exceptional spend. | A request/approve queue lets the agent escalate over-budget payments to the human without ever bypassing limits itself. |
-| Judges score security (CertiK Skill Scanner). | Single self-contained contract, checks-effects-interactions, reentrancy guard, custom errors, two-step ownership, SafeERC20 — designed to scan clean. |
-
----
-
-## Architecture: the 3-layer Pharos Skill
-
-```
-.
-├── SKILL.md                         ← Layer 1: capability index (agent reads first)
-├── references/
-│   ├── agent-allowance-vault.md     ← Layer 2: exact cast/forge templates per operation
-│   ├── query.md  transaction.md  contract.md
-├── assets/                          ← Layer 3: contracts, configs, templates
-│   ├── networks.json                ← Pharos RPCs, chain IDs, explorers
-│   ├── tokens.json
-│   └── agent-allowance-vault/
-│       ├── AgentAllowanceVault.sol  ← the vault (source of truth)
-│       └── MockPROS.sol             ← faucet test token
-├── src/                             ← Foundry build sources
-├── test/AgentAllowanceVault.t.sol   ← 17 tests incl. fuzzing
-├── script/DeployVault.s.sol
-└── scripts/demo.sh                  ← one-command reproducible local demo
-```
-
-An agent: reads `SKILL.md` → matches the user's intent in the Capability Index → opens the
-referenced section → runs the exact `cast`/`forge` command → parses output → returns an
-explorer link.
-
----
-
-## Quickstart
-
-### Prerequisites
+### 1. Install & build
 ```bash
-# Foundry
 curl -L https://foundry.paradigm.xyz | bash && foundryup
-# (or: brew install foundry)
-```
-
-### Run the full demo locally (no testnet, no funds)
-```bash
-git clone <this-repo> && cd <this-repo>
 forge install foundry-rs/forge-std
-./scripts/demo.sh
-```
-This spins up `anvil`, deploys the token + vault, funds it, grants an agent a budget, and
-walks the entire lifecycle — proving the guardrails fire on-chain.
-
-### Run the tests
-```bash
-forge test -vvv
+forge build
 ```
 
-### Deploy to Pharos testnet
+### 2. Set your key & network
 ```bash
 export PRIVATE_KEY=0xYOUR_KEY
-export RPC=https://atlantic.dplabs-internal.com   # Atlantic (688689); 688688 may be gated
-# Native-PHRS vault (recommended — custodies the real testnet asset, no token needed)
-forge create src/AgentAllowanceVault.sol:AgentAllowanceVault \
-  --rpc-url $RPC --private-key $PRIVATE_KEY --broadcast \
-  --constructor-args 0x0000000000000000000000000000000000000000
-# Fund it
-cast send <VAULT> "depositNative()" --value $(cast to-wei 1 ether) \
-  --rpc-url $RPC --private-key $PRIVATE_KEY
+export RPC=https://atlantic.dplabs-internal.com   # Atlantic testnet (688689)
+export OWNER=$(cast wallet address --private-key $PRIVATE_KEY)
 ```
-For an ERC20 vault instead, pass the token address as the constructor arg and fund with
-`approve` + `deposit`. Full step-by-step (fund, grant, pay, approve, verify) lives in
-[`references/agent-allowance-vault.md`](references/agent-allowance-vault.md). Live addresses
-are in [DEPLOYMENT.md](DEPLOYMENT.md).
 
----
+### 3. Use it as a skill
+Point your agent at `SKILL.md`; it matches your request to `references/agent-allowance-vault.md`
+and runs the right `cast`/`forge` command. Example:
 
-## The contract at a glance
+> "Give agent 0xABC… a budget of 100 PHRS per day, max 40 per payment, then pay 25 to 0xDEF…"
 
-| Function | Who | Effect |
-|----------|-----|--------|
-| `depositNative()` / `deposit(amount)` | anyone | fund the vault (native PHRS / ERC20) |
+The agent calls `grantAllowance(...)` then `pay(...)`; an over-budget request becomes
+`requestPayment(...)` for you to `approvePayment(...)`.
+
+### 4. …or run the core flow directly (native PHRS vault)
+```bash
+# deploy a native vault (asset = address(0))
+forge create src/AgentAllowanceVault.sol:AgentAllowanceVault --rpc-url $RPC --private-key $PRIVATE_KEY \
+  --broadcast --constructor-args 0x0000000000000000000000000000000000000000
+# fund it
+cast send $VAULT "depositNative()" --value $(cast to-wei 1 ether) --rpc-url $RPC --private-key $PRIVATE_KEY
+# grant an agent: 0.5 cap / 0.2 max-per-tx / 1-day period / no expiry
+cast send $VAULT "grantAllowance(address,uint256,uint256,uint256,uint64)" $AGENT \
+  $(cast to-wei 0.5 ether) $(cast to-wei 0.2 ether) 86400 0 --rpc-url $RPC --private-key $PRIVATE_KEY
+# agent pays within budget
+cast send $VAULT "pay(address,uint256)" $RECIPIENT $(cast to-wei 0.1 ether) --rpc-url $RPC --private-key $AGENT_KEY
+```
+Full command reference: [`references/agent-allowance-vault.md`](references/agent-allowance-vault.md).
+Run the whole lifecycle locally: `./scripts/demo.sh`.
+
+## Functions
+
+| Function | Who | What |
+|----------|-----|------|
+| `depositNative()` / `deposit(amount)` | anyone | fund the vault (native / ERC20) |
 | `grantAllowance(agent, cap, maxPerTx, period, expiry)` | owner | set an agent's budget |
-| `pay(recipient, amount)` | agent | pay within budget — reverts if over cap/per-tx |
+| `pay(recipient, amount)` | agent | pay within budget (reverts if over) |
 | `requestPayment(recipient, amount)` | agent | queue an over-budget payment |
-| `approvePayment(id)` | owner | settle a queued payment (explicit override) |
-| `cancelPayment(id)` | owner/agent | drop a queued payment |
-| `revokeAllowance(agent)` | owner | cut off an agent instantly |
-| `setPaused(bool)` | owner | emergency stop |
-| `withdraw(to, amount)` | owner | pull funds out |
-| `transferOwnership` + `acceptOwnership` | owner / new owner | safe two-step handover |
-| `remainingAllowance`, `vaultBalance`, `getAllowance`, `getPendingPayment` | anyone | reads |
+| `approvePayment(id)` / `cancelPayment(id)` | owner / either | settle or drop a queued payment |
+| `revokeAllowance(agent)` · `setPaused(bool)` · `withdraw(to, amount)` | owner | controls |
+| `remainingAllowance(agent)` · `vaultBalance()` | anyone | reads |
 
----
+## Networks
 
-## Security design (built for the CertiK Skill Scanner)
+| Network | chainId | RPC |
+|---------|---------|-----|
+| Atlantic testnet (default) | 688689 | `https://atlantic.dplabs-internal.com` |
+| Mainnet | 1672 | `https://rpc.pharos.xyz` |
 
-- **No fund custody by the agent** — agents hold allowances, never keys to the money.
-- **Checks-Effects-Interactions** on every state-changing path; state written before transfer.
-- **ReentrancyGuard** on `deposit`, `depositNative`, `pay`, `approvePayment`, `withdraw`
-  — critical for the native-PHRS payout path (`call`).
-- **SafeERC20** wrapper handles non-standard tokens and empty-code addresses; native
-  payouts use a bounded `call` with an explicit success check (`NativeTransferFailed`).
-- **Custom errors** for every failure → cheap gas + unambiguous agent error handling.
-- **Two-step ownership transfer** prevents bricking the vault.
-- **Owner-only** mutating admin functions; per-agent `active`/`expiry` gating.
-- **Rolling-period accounting** that safely resets without external keepers.
-- **17 unit tests + fuzz test** proving the cap is never exceeded within a period.
-- **Single self-contained file** (no external imports) → minimal audit surface, trivial
-  source verification on PharosScan.
+A live native-PHRS vault on Atlantic is in [DEPLOYMENT.md](DEPLOYMENT.md).
 
-Pinned to Solidity `0.8.24` (checked arithmetic). `block.timestamp` is used only for
-day/hour-scale budget windows, where validator drift (seconds) is immaterial.
-
----
+## Notes
+- The vault custodies **native PHRS** by default (`asset = address(0)`) or any ERC20.
+- Built with Foundry + Solidity 0.8.24; single self-contained contract (no imports).
+- Reference implementation for testnet/hackathon use — audit before mainnet value.
 
 ## License
-MIT — see [LICENSE](LICENSE).
+MIT
