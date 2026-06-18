@@ -16,30 +16,9 @@ contract, not by the agent's prompt.
 - **Stay in control**: revoke an agent instantly, pause all spending, withdraw, or transfer
   ownership (two-step) at any time.
 
-## How to use it
-
-### 1. Install & build
-```bash
-curl -L https://foundry.paradigm.xyz | bash && foundryup
-forge install foundry-rs/forge-std
-forge build
-```
-
-### 2. Set your key & network
-```bash
-export PRIVATE_KEY=0xYOUR_KEY
-export RPC=https://atlantic.dplabs-internal.com   # Atlantic testnet (688689); mainnet: https://rpc.pharos.xyz
-export OWNER=$(cast wallet address --private-key $PRIVATE_KEY)
-```
-
-### 3. Run it
-Point your agent at [`SKILL.md`](SKILL.md). It maps your request to
-[`references/agent-allowance-vault.md`](references/agent-allowance-vault.md) and runs the exact
-`cast`/`forge` command. You can also run any command directly from the reference file.
-
 ## Examples
 
-**Talk to the agent in plain English:**
+Talk to the agent in plain English:
 
 | You say | The agent does |
 |---------|----------------|
@@ -50,18 +29,10 @@ Point your agent at [`SKILL.md`](SKILL.md). It maps your request to
 | "Cut off agent 0xABC… now" | `revokeAllowance(0xABC…)` |
 | "Freeze the vault" | `setPaused(true)` |
 
-**Or run the core flow directly (native PHRS vault):**
-```bash
-# deploy a native vault (asset = address(0))
-forge create src/AgentAllowanceVault.sol:AgentAllowanceVault --rpc-url $RPC --private-key $PRIVATE_KEY \
-  --broadcast --constructor-args 0x0000000000000000000000000000000000000000
-# fund it, then grant an agent a budget and let it pay
-cast send $VAULT "depositNative()" --value $(cast to-wei 1 ether) --rpc-url $RPC --private-key $PRIVATE_KEY
-cast send $VAULT "grantAllowance(address,uint256,uint256,uint256,uint64)" $AGENT \
-  $(cast to-wei 0.5 ether) $(cast to-wei 0.2 ether) 86400 0 --rpc-url $RPC --private-key $PRIVATE_KEY
-cast send $VAULT "pay(address,uint256)" $RECIPIENT $(cast to-wei 0.1 ether) --rpc-url $RPC --private-key $AGENT_KEY
-```
+## How to use it
 
-Run the full lifecycle locally with `./scripts/demo.sh`. Every command, with parameters and
-error notes, is in [`references/agent-allowance-vault.md`](references/agent-allowance-vault.md).
-Live vault on Atlantic is in [DEPLOYMENT.md](DEPLOYMENT.md).
+Point your agent at [`SKILL.md`](SKILL.md) — it contains the setup, capability index, and the
+exact `cast`/`forge` command for every operation. The agent matches your request to
+[`references/agent-allowance-vault.md`](references/agent-allowance-vault.md) and runs it. Run
+the full lifecycle locally with `./scripts/demo.sh`; live vault on Atlantic is in
+[DEPLOYMENT.md](DEPLOYMENT.md).
