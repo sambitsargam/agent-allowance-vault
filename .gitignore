@@ -5,3 +5,4 @@ broadcast/
 *.log
 lib/
 .DS_Store
+.gas-snapshot
